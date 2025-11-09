@@ -4,7 +4,7 @@ import argparse
 import io
 import re
 
-ID_LENGTH_BOUND = 10 #upper bound on number of digits in a publication identifier
+ID_LENGTH_BOUND = 30 #upper bound on number of digits in a publication identifier
 INDEX_FIELD = 0
 TRIAL_ID_FIELD = 1
 TITLE_FIELD = 2
@@ -13,11 +13,12 @@ STATUS_FIELD = 4
 DISEASE_FIELD = 6
 PRIMARY_DRUG_FIELD = 16
 OTHER_DRUG_FIELD = 20
-RESULTS_FIELD = 70
-NOTES_FIELD = 71
+RESULTS_FIELD = 76
+NOTES_FIELD = 77
 
-pubmed_full_pattern = re.compile(r'pubmed/\d+')
+pubmed_full_pattern = re.compile(r'pubmed[^\s]*\d+')
 pubmed_longer_pattern = re.compile(r'pubmed.ncbi.nlm.nih.gov/\d+')
+pubmed_old_pattern = re.compile(r'PubMed[^\s]*\d+')
 PMC_pattern = re.compile(r'PMC\d+')
 Digits_only_pattern = re.compile(r'\d+')
 NCT_pattern = re.compile(r'NCT[0-9]+')
@@ -98,21 +99,36 @@ def main():
             if (fourth_match):
                 for one_pattern_match in pubmed_longer_pattern.finditer(this_notes):
                     this_end_position = one_pattern_match.end()
-                    numerical_id = this_notes[this_end_position-8:this_end_position]
                     candidate_string = this_notes[this_end_position-ID_LENGTH_BOUND:this_end_position]
                     numerical_id = get_pubmed_digits(candidate_string)
                     if (numerical_id not in pubmed_list):
                         pubmed_list.append(numerical_id)
-            fifth_match = PMC_pattern.search(this_results)
+            fifth_match = pubmed_old_pattern.search(this_results)
             if (fifth_match):
+                for one_pattern_match in pubmed_old_pattern.finditer(this_results):
+                    this_end_position = one_pattern_match.end()
+                    candidate_string = this_results[this_end_position-ID_LENGTH_BOUND:this_end_position]
+                    numerical_id = get_pubmed_digits(candidate_string)
+                    if (numerical_id not in pubmed_list):
+                        pubmed_list.append(numerical_id)
+            sixth_match = pubmed_old_pattern.search(this_notes)
+            if (sixth_match):
+                for one_pattern_match in pubmed_old_pattern.finditer(this_notes):
+                    this_end_position = one_pattern_match.end()
+                    candidate_string = this_notes[this_end_position-ID_LENGTH_BOUND:this_end_position]
+                    numerical_id = get_pubmed_digits(candidate_string)
+                    if (numerical_id not in pubmed_list):
+                        pubmed_list.append(numerical_id)                        
+            seventh_match = PMC_pattern.search(this_results)
+            if (seventh_match):
                 for one_pattern_match in PMC_pattern.finditer(this_results):
                     this_end_position = one_pattern_match.end()
                     candidate_string = this_results[this_end_position-ID_LENGTH_BOUND:this_end_position]
                     numerical_id = get_pubmed_digits(candidate_string)
                     string_to_append = "PMC" + numerical_id
                     pubmed_list.append(string_to_append)
-            sixth_match = PMC_pattern.search(this_notes)
-            if (sixth_match):
+            eighth_match = PMC_pattern.search(this_notes)
+            if (eighth_match):
                 for one_pattern_match in PMC_pattern.finditer(this_notes):
                     this_end_position = one_pattern_match.end()
                     candidate_string = this_notes[this_end_position-ID_LENGTH_BOUND:this_end_position]
@@ -120,7 +136,8 @@ def main():
                     string_to_append = "PMC" + numerical_id
                     if (string_to_append not in pubmed_list):
                         pubmed_list.append(string_to_append)
-            if (len(pubmed_list) > 0 and (status_of_trial == "Completed") and NCT_list):            
+            #if (len(pubmed_list) > 0 and (status_of_trial == "Completed") and NCT_list):
+            if (len(pubmed_list) > 0):            
                 FULL_OUTPUT_FD.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t" % (index_of_trial, NCT_list,phase_of_trial,status_of_trial,disease_of_trial,primary_drugs,secondary_drugs,name_of_trial))
                 num_ids = len(pubmed_list)
                 for i in range(0,num_ids):
